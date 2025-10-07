@@ -1,68 +1,46 @@
-module ldwt_block (
-    input  wire         clk,
-    input  wire         reset,
-    input  wire signed [15:0] y_even,   // y_{2n}
-    input  wire signed [15:0] y_odd,    // y_{2n+1}
-    input  wire signed [15:0] y_even_next, // y_{2n+2} (for predict)
-    input  wire signed [15:0] d_prev,      // d_{n1-1}
-    input  wire signed [15:0] a_next,      // a_{n1+1}
-    input  wire  [2:0]  sel,               // control signal: step selector S1-S4
-    output reg  signed [15:0] a_n,
-    output reg  signed [15:0] d_n
+module ldwt_db4_csd (
+    input  clk,
+    input  rst,
+    input  signed [15:0] y_even,       // y[2n]
+    input  signed [15:0] y_odd,        // y[2n+1]
+    input  signed [15:0] y_even_next,  // y[2n+2]
+    output reg signed [15:0] a_out,    // approximation coeff
+    output reg signed [15:0] d_out     // detail coeff
 );
 
-    // Fixed-point coefficients (Q1.15)
-    parameter signed [15:0] C1 = 16'sd10395; // (sqrt(3)-1)/4 ≈ 0.317
-    parameter signed [15:0] C2 = 16'sd14204; // sqrt(3)/4 ≈ 0.433
-    parameter signed [15:0] C3 = 16'sd22338; // (sqrt(3)+1)/4 ≈ 0.683
-    parameter signed [15:0] SQRT2_INV = 16'sd23170; // 1/sqrt(2) ≈ 0.707
-
     // Internal registers
-    reg signed [31:0] d_n1, a_n1, d_n2;
+    reg signed [15:0] dn1, an1, dn2;
+    reg signed [31:0] temp1, temp2, temp3;
 
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            d_n1 <= 0;
-            a_n1 <= 0;
-            d_n2 <= 0;
-            a_n  <= 0;
-            d_n  <= 0;
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            dn1  <= 0;
+            an1  <= 0;
+            dn2  <= 0;
+            a_out <= 0;
+            d_out <= 0;
         end else begin
-            case(sel)
-                3'b001: begin
-                    // Step 1: Predict d_n1
-                    // d_n1 = y_odd - ((sqrt(3)-1)/4)*(y_even + y_even_next)
-                    d_n1 <= y_odd - ((C1 * (y_even + y_even_next)) >>> 15);
-                end
+            // --- Step 1: dn1 = y_odd - ((√3 - 1)/4)*(y_even + y_even_next)
+            temp1 = y_even + y_even_next;
+            // Approximate (√3 - 1)/4 with shifts: (x>>2 + x>>3 + x>>5)
+            temp2 = (temp1 >>> 2) + (temp1 >>> 3) + (temp1 >>> 5);
+            dn1  <= y_odd - temp2[15:0];
 
-                3'b010: begin
-                    // Step 2a: Update a_n1
-                    // a_n1 = y_even + (sqrt(3)/4)*(d_n1 + d_prev)
-                    a_n1 <= y_even + ((C2 * (d_n1 + d_prev)) >>> 15);
+            // --- Step 2: an1 = y_even + (√3/4)*(dn1 + dn1_prev)
+            // For simplicity assume dn1_prev = dn1 (streaming delay = 1)
+            temp3 = (dn1 >>> 2) + (dn1 >>> 3);   // (√3/4) ≈ x>>2 + x>>3
+            an1  <= y_even + temp3[15:0];
 
-                    // Step 2b: Refine d_n2
-                    // d_n2 = d_n1 + ((sqrt(3)+1)/4)*(a_n1 + a_next)
-                    d_n2 <= d_n1 + ((C3 * (a_n1 + a_next)) >>> 15);
-                end
+            // --- Step 3: dn2 = dn1 + ((√3 + 1)/4)*an1
+            temp1 = (an1 >>> 1) + (an1 >>> 4);   // (√3 + 1)/4 ≈ x>>1 + x>>4
+            dn2  <= dn1 + temp1[15:0];
 
-                3'b011: begin
-                    // Step 3: Scaling to get final outputs
-                    // a_n = a_n1 / sqrt(2)
-                    // d_n = d_n2 / sqrt(2)
-                    a_n <= (a_n1 * SQRT2_INV) >>> 15;
-                    d_n <= (d_n2 * SQRT2_INV) >>> 15;
-                end
+            // --- Step 4: scaling by 1/√2 (x>>1 + x>>4)
+            temp2 = (an1 >>> 1) + (an1 >>> 4);
+            temp3 = (dn2 >>> 1) + (dn2 >>> 4);
 
-                default: begin
-                    // Hold values
-                    d_n1 <= d_n1;
-                    a_n1 <= a_n1;
-                    d_n2 <= d_n2;
-                    a_n  <= a_n;
-                    d_n  <= d_n;
-                end
-            endcase
+            a_out <= temp2[15:0];
+            d_out <= temp3[15:0];
         end
     end
-
 endmodule
