@@ -61,7 +61,8 @@ module ldwt_db4_csd (
 
 The full folded LDWT system wraps the lifting engine above with two address generation units (AU1 for reads, AU2 for writes), dual-port working memory (BRAM A) for intermediate approximation coefficients, single-port output memory (BRAM B) for final sub-band coefficients, and a 7-state FSM that sequences the four decomposition levels.
 
-![LDWT hardware architecture](figures/ldwt-final-drawio.png)
+<img width="1253" height="379" alt="ldwt-final drawio" src="https://github.com/user-attachments/assets/567eb662-e0f8-47a3-b393-5bf900ebc679" />
+
 
 *Figure 1: LDWT hardware architecture — State Machine, Address Units (read/write), Lifting Engine, and BRAM working/output memory.*
 
@@ -115,7 +116,8 @@ Rather than one hardware module per tree level (the conventional approach), the 
 
 ### Random Forest pipeline architecture (Figure 3)
 
-![Random Forest classifier pipeline architecture](figures/ldwt-arch-final.png)
+<img width="2048" height="1117" alt="ldwt-arch-final" src="https://github.com/user-attachments/assets/0c93dffb-27ac-4200-8f21-cce5219dfdad" />
+
 
 *Figure 3: Depth-stratified Random Forest classifier pipeline — 50 parallel Tree Evaluation Units (TEUs) per stage across 5 stages, with early termination, a logarithmic adder tree, and score normalization.*
 
