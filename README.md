@@ -1,4 +1,4 @@
-# ECG Processor — Rhythm-Level AF Detection (Hardware)
+# ECG Processor for Rhythm-Level AF Detection (Hardware)
 
 This repository implements a complete FPGA hardware pipeline for **rhythm-level Atrial Fibrillation (AF) detection**, corresponding to **Section 3** of the accompanying book chapter *"A Unified Framework for ECG-Based Arrhythmia Analysis on Wearable Devices."*
 
